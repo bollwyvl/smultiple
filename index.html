@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+  <head>
+    <title>smultiple: small multiples for d3</title>
+    <meta charset="utf-8">
+    <style>
+      .smultiple .sm-cell-bg {
+        fill: #fff;
+        stroke: #eee;
+      }
+      
+      .smultiple circle{
+        opacity: 0.1;
+      }
+    </style>
+  </head>
+  <body>
+    
+    <div id="example"></div>
+
+    <script src="./bower_components/d3/d3.min.js"></script>
+    <script src="./smultiple.js"></script>
+    <script>
+      var example = d3.select("#example"),
+        isNum = function(d){ return Object.keys(d[0])
+          .filter(function(field){
+            return typeof d[0][field] === "number";
+          })},
+        sm = smultiple()
+          .columns(isNum)
+          .rows(isNum);
+      
+      function render(err, data){
+        example.datum(data.whiskies)
+          .call(sm)
+          .selectAll(".sm-cell")
+          .each(function(cell){
+            var content = d3.select(this).select(".sm-cell-content");
+            content.selectAll("circle")
+              .data(cell.points)
+              .call(function(point){
+                point.enter().append("circle")
+                  .attr({r: 1})
+              })
+              .attr({
+                cx: function(d){
+                  return cell.x(d[cell.column]);
+                },
+                cy: function(d){ return cell.y(d[cell.row]); }
+              })
+          });
+      }
+      
+      d3.json("./whiskies.json", render);
+    </script>
+  </body>
+</html>
