@@ -4,18 +4,25 @@
     <title>smultiple: small multiples for d3</title>
     <meta charset="utf-8">
     <style>
+      * {
+        font-family: sans-serif;
+      }
       .smultiple .sm-cell-bg {
         fill: #fff;
         stroke: #eee;
       }
-      
+
+      .smultiple .sm-cell {
+        text-anchor: middle;
+      }
+
       .smultiple circle{
         opacity: 0.1;
       }
     </style>
   </head>
   <body>
-    
+
     <div id="example"></div>
 
     <script src="./bower_components/d3/d3.min.js"></script>
@@ -29,11 +36,25 @@
         sm = smultiple()
           .columns(isNum)
           .rows(isNum);
-      
+
       function render(err, data){
-        example.datum(data.whiskies)
+        var cell = example.datum(data.whiskies)
           .call(sm)
-          .selectAll(".sm-cell")
+          .selectAll(".sm-cell");
+
+        cell.filter(function(d){ return d.column === d.row; })
+          .selectAll("text").data(function(d){ return [d] })
+            .call(function(text){
+              text.enter().append("text")
+                .attr({
+                  dy: "0.35em",
+                  x: function(d){ return d.x(d3.mean(d.x.domain())); },
+                  y: function(d){ return d.y(d3.mean(d.y.domain())); }
+                });
+            })
+          .text(function(d){ return d.row; })
+
+        cell.filter(function(d){ return d.column !== d.row; })
           .each(function(cell){
             var content = d3.select(this).select(".sm-cell-content");
             content.selectAll("circle")
@@ -50,7 +71,7 @@
               })
           });
       }
-      
+
       d3.json("./whiskies.json", render);
     </script>
   </body>
