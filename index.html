@@ -5,8 +5,21 @@
     <meta charset="utf-8">
     <style>
       * {
-        font-family: sans-serif;
+        font-family: "Gill Sans MT", "Gill Sans", sans-serif;
       }
+
+      body {
+        display: flex;
+      }
+
+      #panel {
+        flex: 2;
+      }
+
+      #example {
+        flex: 8;
+      }
+
       .smultiple .sm-cell-bg {
         fill: #fff;
         stroke: #eee;
@@ -22,57 +35,96 @@
     </style>
   </head>
   <body>
-
+    <div id="panel">
+      <h2>Scotch Whisky</h2>
+    </div>
     <div id="example"></div>
 
     <script src="./bower_components/d3/d3.min.js"></script>
     <script src="./smultiple.js"></script>
     <script>
       var example = d3.select("#example"),
-        isNum = function(d){ return Object.keys(d[0])
-          .filter(function(field){
-            return typeof d[0][field] === "number";
-          })},
-        sm = smultiple()
-          .columns(isNum)
-          .rows(isNum);
+        panel = d3.select("#panel"),
+        dimensions = {},
+        // configure smultiple
+        sm = d3.layout.smultiple();
 
-      function render(err, data){
-        var cell = example.datum(data.whiskies)
-          .call(sm)
-          .selectAll(".sm-cell");
+      d3.json("./whiskies.json", init);
+
+      function init(err, data){
+        // initialize columns
+        dimensions = d3.keys(data.whiskies[0]).reduce(function(m, k){
+          m[k] = typeof data.whiskies[0][k] === "number";
+          return m;
+        }, {});
+
+        render(data);
+      }
+
+      function render(data){
+        var dims = d3.entries(dimensions).reduce(function(m, dim){
+          return m.concat(dim.value ? [dim.key] : []);
+        }, []);
+
+        sm.columns(dims)
+          .rows(dims);
+
+        panel
+          .selectAll("p")
+          .data(d3.entries(dimensions))
+          .call(function(attr){
+            attr = attr.enter()
+              .append("p");
+
+            attr.append("input")
+              .attr({type: "checkbox", checked: 1})
+            attr.append("label");
+
+            attr.on("click", function(d){
+              d.value = dimensions[d.key] = !d.value;
+              render(data);
+            });
+          })
+          .call(function(attr){
+            attr.select("input").property({checked: function(d){
+              return d.value;
+            }});
+            attr.select("label").text(function(d){ return d.key; });
+          });
+
+
+        // (re)bind the point-level data
+        example.datum(data.whiskies)
+          // call the preconfigured values: updates the scales, etc.
+          .call(sm);
+
+        // we can then actually draw the cells
+        var cell = example.selectAll(".sm-cell");
 
         cell.filter(function(d){ return d.column === d.row; })
           .selectAll("text").data(function(d){ return [d] })
             .call(function(text){
-              text.enter().append("text")
-                .attr({
-                  dy: "0.35em",
-                  x: function(d){ return d.x(d3.mean(d.x.domain())); },
-                  y: function(d){ return d.y(d3.mean(d.y.domain())); }
-                });
+              text.enter().append("text");
             })
           .text(function(d){ return d.row; })
+          .attr({
+            dy: "0.35em",
+            x: function(d){ return d3.mean(d.x.range()); },
+            y: function(d){ return d3.mean(d.y.range()); }
+          });
 
         cell.filter(function(d){ return d.column !== d.row; })
           .each(function(cell){
-            var content = d3.select(this).select(".sm-cell-content");
-            content.selectAll("circle")
-              .data(cell.points)
-              .call(function(point){
-                point.enter().append("circle")
-                  .attr({r: 1})
-              })
-              .attr({
-                cx: function(d){
-                  return cell.x(d[cell.column]);
-                },
-                cy: function(d){ return cell.y(d[cell.row]); }
-              })
+            d3.select(this).select(".sm-cell-content")
+              .selectAll("circle")
+                .data(cell.data)
+                .call(function(p){ p.enter().append("circle").attr({r: 2}); })
+                .attr({
+                  cx: function(d){ return cell.x(d[cell.column]); },
+                  cy: function(d){ return cell.y(d[cell.row]); }
+                });
           });
       }
-
-      d3.json("./whiskies.json", render);
     </script>
   </body>
 </html>
