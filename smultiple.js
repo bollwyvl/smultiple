@@ -25,7 +25,7 @@
 
     var _pts = id,
       _cols = _sortedItemKeys,
-      _rows = _sortedItemKeys;
+      _rows = _sortedItemKeys,
 
       // width, height and padding
       _w = 800,
@@ -46,13 +46,11 @@
         }
       },
 
-      _makeScale = function(axis, item, pts){
-        // really don't know why this is here...
-        _scale.cell[axis](2);
-
+      _makeScale = function(axis, item, pts, cellDim){
         var scale,
-          vals = pts.map(_getter(item)),
-          cellDim = _scale.cell[axis](1) - _p;
+          vals = pts ? pts.map(_getter(item)) : [];
+
+        cellDim = cellDim - _p;
 
         switch(typeof vals[0]){
           case "number":
@@ -78,12 +76,14 @@
       var data = selection.datum(),
         pts = _pts(data),
         cols = _cols(pts),
-        rows = _rows(pts);
+        rows = _rows(pts),
+        cellWidth =  _w / cols.length,
+        cellHeight =  _h / rows.length;
 
       _scale.cell.x.domain(cols)
-        .range(d3.range(0, _w, _w / cols.length));
+        .range(d3.range(0, _w, cellWidth));
       _scale.cell.y.domain(rows)
-        .range(d3.range(0, _h, _h / rows.length));
+        .range(d3.range(0, _h, cellHeight));
 
       _scale.x = {};
       _scale.y = {};
@@ -106,24 +106,24 @@
             row: row,
             column: col,
             data: pts,
-            x: _scale.x[col] || _makeScale("x", col, pts),
-            y: _scale.y[row] || _makeScale("y", row, pts),
+            x: _scale.x[col] || _makeScale("x", col, pts, cellWidth),
+            y: _scale.y[row] || _makeScale("y", row, pts, cellHeight),
           };
         }));
       }, []);
 
-      var cell = container.selectAll("." + _clsCell)
+      container.selectAll("." + _clsCell)
         .data(cellData, function(cell){
-          return [cell.row, cell.column];
+          return [cell.column, cell.row];
         })
 
         // enter
         .call(function(cell){
           cell = cell.enter().append(_tagCell)
-            .classed(_clsCell, 1)
+            .classed(_clsCell, 1);
 
           cell.append("rect")
-            .classed(_clsCell + "-bg", 1)
+            .classed(_clsCell + "-bg", 1);
 
           cell.append("g")
             .classed(_clsCell + "-content", 1);
@@ -133,11 +133,10 @@
         .call(function(cell){
           cell.attr({transform: function(d){
             return "translate(" + [
-              _scale.cell.x(d.row),
-              _scale.cell.y(d.column)
+              _scale.cell.x(d.column),
+              _scale.cell.y(d.row)
             ]+ ")";
           }});
-
           cell.select("." + _clsCell + "-bg").attr({
             width: (_w / cols.length) - _p,
             height: (_h / rows.length) - _p
@@ -159,7 +158,7 @@
 
     api.get = function get(val){
       return arguments.length ? ((_getter = val) || 1) && api : _getter;
-    }
+    };
 
     api.columns = function columns(val){
       return arguments.length ? ((_cols = fn(val)) || 1) && api : _cols;
